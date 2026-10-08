@@ -56,3 +56,27 @@ dialog{max-width:420px;color:var(--bone);background:var(--ink2);border:1px solid
 dialog::backdrop{background:rgba(0,0,0,.6)}
 dialog h2{font-style:normal}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+/* ---------- version 2 additions ---------- */
+.toasts{position:fixed;left:12px;right:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:20;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{max-width:520px;margin:0 auto;width:100%;padding:12px 14px;background:var(--bone);color:var(--ink);border-left:5px solid var(--gold);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:2px;font-size:14px;transition:opacity .4s,transform .4s}
+.toast b{font:700 16px var(--serif)}
+.toast.out{opacity:0;transform:translateY(8px)}
+.statgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stat{display:flex;flex-direction:column;align-items:center;padding:8px 4px;background:var(--ink2);border:1px solid var(--line);border-radius:8px}
+.stat>span{font-size:12px;color:var(--muted)}
+.stat>b{font:700 30px/1.1 var(--serif)}
+.stat.boosted>b{color:var(--gold)}
+.adj{display:grid;grid-template-columns:30px 1fr 30px;align-items:center;gap:2px;width:100%}
+.adj button{height:30px;padding:0;color:var(--bone);background:none;border:1px solid var(--line);border-radius:6px}
+.adj small{text-align:center;color:var(--muted);font-size:11px}
+.racebox{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px}
+.racebox b{font:700 17px var(--serif)}.racebox ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:14px}
+.skhead{display:flex;justify-content:space-between;align-items:baseline}.skhead small{color:var(--muted)}
+h3{margin:12px 0 4px;font:700 16px var(--serif)}
+details.item{border-top:1px solid var(--line);padding:8px 0}
+details.item summary{display:flex;justify-content:space-between;gap:8px;cursor:pointer;list-style:none}
+details.item summary::-webkit-details-marker{display:none}
+details.item summary span{color:var(--muted);font-size:13px;white-space:nowrap}
+details.item p{margin:6px 0 0;font-size:14px}
+.warn{color:#ef8f84}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
