@@ -19,7 +19,11 @@ const DECK_FX = {'Improved Tactics':{Basic:-4,Common:4,_:'Promote one Basic numb
   'Seasoned Tactics':{Common:-4,Uncommon:4,Rare:-2,Epic:2,_:'Promote one Common number to Uncommon and one Rare color to Epic'},'Wild Card':{Legendary:1,_:'Add the second joker (wild, up to Legendary)'},
   'Focused Training':{Rare:-2,Epic:2,_:'Promote one Rare color to Epic'},'Specialist':{Uncommon:-4,Rare:4,_:'Promote one Uncommon number to Rare'},'Mastery':{Epic:-2,Legendary:2,_:'Promote two Epic cards to Legendary'},
   'Grand Strategy':{Legendary:-1,Mythic:1,_:'Promote the joker to Mythic'},"Officer's Training":{Common:-4,Uncommon:4,_:'Promote one Common number to Uncommon'},'Veteran Command':{Epic:-1,Legendary:1,_:'Promote one Epic card to Legendary'}};
-let db = load(); let current = null; let tab = 'overview'; let editList = false;
+let db = load(); let current = null; let tab = 'overview'; let editList = false; const openGroups = new Set();
+const DAMAGING = ['Bleed','Flame','Poison','Acid'];
+const has = (c, perk) => granted(c).some(i => i.name === perk);
+const startNeed = c => has(c, 'Trained Resilience') ? 3 : 4;
+const d4 = () => (crypto.getRandomValues(new Uint32Array(1))[0] % 4) + 1;
 
 function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } }
 let saveTimer; function save() { clearTimeout(saveTimer); saveTimer = setTimeout(() => localStorage.setItem(KEY, JSON.stringify(db)), 250); }
@@ -92,7 +96,8 @@ function totals(c) {
     if (a.cat === 'stack' && a.type === 'Paralysis') { live.STR -= n(a.count); live.AGI -= n(a.count); }
     if (a.cat === 'condition' && a.type === 'Weakened' && a.stat) live[a.stat] -= Math.abs(n(a.amount));
   }
-  const enc = carried > carryLimit; if (enc) { live.SPD -= 2; notes.push(carried >= 2 * carryLimit ? 'Encumbered: −2 Speed, no running or rolled movement' : 'Encumbered: −2 Speed'); }
+  const liveCarry = carryLimit + (live.STR - st.STR) * (granted(c).some(i => i.name === 'Heavy Lifter') ? 2 : 1);
+  const enc = carried > liveCarry; if (enc) { live.SPD -= 2; notes.push(carried >= 2 * carryLimit ? 'Encumbered: −2 Speed, no running or rolled movement' : 'Encumbered: −2 Speed'); }
   const L = n(c.level);
   for (const a of c.aug) {
     if (a.cat === 'stack' && a.type === 'Frozen') { if (n(a.count) > L) notes.push('Frozen solid: no actions until you recover'); else if (n(a.count) >= 3) notes.push('Chilled: no Defensive abilities; Quick abilities only as Standard on your turn'); }
@@ -102,7 +107,7 @@ function totals(c) {
     if (a.cat === 'condition' && a.type === 'Silenced') notes.push('Silenced: no magic abilities');
     if (a.cat === 'condition' && a.type === 'Immobilized') notes.push('Immobilized: no movement');
   }
-  return { st, live, maxhp, hpSkill, natural, worn, armor: natural + worn + n(c.armorOther), earned, spent, carryLimit, carried, notes };
+  return { liveCarry, st, live, maxhp, hpSkill, natural, worn, armor: natural + worn + n(c.armorOther), earned, spent, carryLimit, carried, notes };
 }
 // ---------- notifications ----------
 function toast(lines) {
@@ -121,6 +126,25 @@ const select = (label, path, opts, blankLabel) => `<label class="field"><span>${
 const stat = (label, val, sub = '', boosted = false) => `<div class="calc ${boosted ? 'boosted' : ''}"><span>${label}</span><b>${esc(val)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
 const detail = i => `<details class="item"><summary><b>${esc(i.name)}</b><span>${i.kind === 'ability' ? esc(i.type + ' · ' + i.rarity) : esc(i.tierLabel || 'Perk')}</span></summary><p><i>${esc(i.desc)}</i></p><p>${esc(i.usage)}</p></details>`;
 const moveText = T => Math.max(2, 5 + T) + 'M';
+function stackLine(a) {
+  const need = n(a.need) || startNeed(current); const parts = [`Recovers on ${need}+`];
+  if (DAMAGING.includes(a.type)) parts.push(`deals ${n(a.count)}D4${has(current, 'Hardy') ? ` − ${n(a.count)} (Hardy, min 1 each)` : ''} at end of phase`);
+  if (a.type === 'Paralysis') parts.push(`−${n(a.count)} Strength and Agility`);
+  return parts.join(' · ');
+}
+function recover(id) {
+  const a = current.aug.find(x => x.id === id); const need = n(a.need) || startNeed(current); const roll = d4(); const before = n(a.count);
+  const ok = roll !== 1 && roll >= need; let removed = 0;
+  if (ok) { removed = DAMAGING.includes(a.type) ? Math.max(3, Math.ceil(before / 2)) + (has(current, 'Shrug It Off') ? 1 : 0) : Math.ceil(before / 2); removed = Math.min(before, removed); a.count = before - removed; }
+  a.need = Math.max(2, need - 1);
+  const lines = [`${a.type} recovery: rolled ${roll}, needed ${need}+`];
+  if (ok) lines.push(`Removed ${removed} ${a.type} stack${removed > 1 ? 's' : ''} (${before} → ${a.count})`);
+  else lines.push(roll === 1 ? 'A 1 never recovers.' : 'Failed.');
+  if (a.count > 0) lines.push(`Next roll needs ${a.need}+`); else lines.push(`${a.type} cleared`);
+  if (!a.count) current.aug = current.aug.filter(x => x !== a);
+  toast(lines); rerender();
+}
+const capStack = a => { if (DAMAGING.includes(a.type) && has(current, 'Unyielding Flesh') && n(a.count) > 5) { a.count = 5; toast(['Unyielding Flesh', `${a.type} can not exceed 5 stacks`]); } };
 // ---------- list ----------
 function listView() {
   current = null; $('#tabs').hidden = true; $('#backBtn').hidden = true; $('#title').textContent = 'Primordium';
@@ -144,7 +168,7 @@ const equippedList = () => { const eq = current.items.filter(i => i.equipped);
   return eq.length ? eq.map(i => `<div class="eq"><b>${esc(i.name)}</b><span>${i.kind === 'weapon' ? esc(i.wtype || 'Weapon') + ` · Tier ${n(i.tier)}` + (n(i.ap) ? ` · ${n(i.ap)}AP` : '') : esc(i.slot || 'Armor') + (i.slot === 'Shield' ? ` · Tier ${n(i.tier)} (adds to blocks)` : ` · ${n(i.armor)} armor`)}${i.special ? ' · ' + esc(i.special) : ''}</span></div>`).join('') : '<p class="note">Nothing equipped. Equip items on the Inventory tab.</p>'; };
 const views = {
   overview: T => {
-    const combat = current.mode === 'combat'; const S = combat ? T.live : T.st;
+    const combat = current.mode === 'combat'; const S = T.live;
     const head = `<div class="modebar"><span>${combat ? 'Combat' : 'Standard'}</span><button class="switch ${combat ? 'on' : ''}" data-act="mode" role="switch" aria-checked="${combat}" aria-label="Combat mode"><i></i></button></div>`;
     const hp = `<section class="hero">${combat
       ? `<div class="hpline"><button class="big" data-hp="-1" aria-label="Lose 1 HP">−</button><div class="hpnum"><input type="number" inputmode="numeric" data-p="hpCur" value="${esc(current.hpCur)}" aria-label="Current HP"><small>of ${T.maxhp} HP</small></div><button class="big" data-hp="1" aria-label="Gain 1 HP">+</button></div>`
@@ -156,7 +180,9 @@ const views = {
       ${combat ? '<p class="note">Changes here are temporary and clear when combat ends.</p>' : ''}</section>`;
     const notes = T.notes.length ? `<section class="alerts">${T.notes.map(x => `<p>${esc(x)}</p>`).join('')}</section>` : '';
     const augs = `<section><div class="listbar"><h2>Effects</h2>${combat ? '<button class="btn small" data-act="addaug">+ Add</button>' : ''}</div>
-      ${current.aug.length ? current.aug.map(a => `<div class="rec"><div><b>${esc(a.type)}</b><small>${esc({stack:'Stack',resource:'Resource',condition:'Condition',stat:'Stat effect'}[a.cat])}${a.cat === 'stat' ? ` · ${n(a.amount) > 0 ? '+' : ''}${n(a.amount)} ${STATN[a.stat]}` : ''}${a.cat === 'condition' && a.stat ? ` · −${Math.abs(n(a.amount))} ${STATN[a.stat]}` : ''}${a.source ? ' · ' + esc(a.source) : ''}</small></div>
+      ${current.aug.length ? current.aug.map(a => `<div class="rec ${a.cat === 'stack' && current.mode === 'combat' ? 'stackrec' : ''}"><div><b>${esc(a.type)}</b><small>${esc({stack:'Stack',resource:'Resource',condition:'Condition',stat:'Stat effect'}[a.cat])}${a.cat === 'stat' ? ` · ${n(a.amount) > 0 ? '+' : ''}${n(a.amount)} ${STATN[a.stat]}` : ''}${a.cat === 'condition' && a.stat ? ` · −${Math.abs(n(a.amount))} ${STATN[a.stat]}` : ''}${a.source ? ' · ' + esc(a.source) : ''}</small>
+        ${a.cat === 'stack' ? `<small class="need">${stackLine(a)}</small>` : ''}</div>
+        ${combat && a.cat === 'stack' ? `<button class="btn small rec-btn" data-recover="${a.id}" aria-label="Recovery roll for ${esc(a.type)}">Recover</button>` : ''}
         ${combat ? (a.cat === 'stack' || a.cat === 'resource' ? `<div class="mini"><button data-aug="${a.id}" data-by="-1" aria-label="Lower ${esc(a.type)}">−</button><output>${n(a.count)}</output><button data-aug="${a.id}" data-by="1" aria-label="Raise ${esc(a.type)}">+</button></div>` : '') + `<button class="x" data-rmaug="${a.id}" aria-label="Remove ${esc(a.type)}">×</button>` : (a.cat === 'stack' || a.cat === 'resource' ? `<output>${n(a.count)}</output>` : '')}</div>`).join('')
         : `<p class="note">${combat ? 'Add stacks, resources, conditions, and temporary stat effects with + Add.' : 'No active effects.'}</p>`}</section>`;
     if (!combat) return head + hp + stats + notes + augs + `<section><h2>Equipped</h2>${equippedList()}</section>`;
@@ -199,7 +225,7 @@ const views = {
     return `
     <section><div class="listbar"><h2>Equipped</h2></div>${eq.length ? eq.map(card).join('') : '<p class="note">Equip an item from your pack below.</p>'}
       <div class="row2">${stat('Worn armor', T.worn)}${stat('Total armor', T.armor)}</div></section>
-    <section><div class="listbar"><h2>Pack</h2><span class="${T.carried > T.carryLimit ? 'warn' : 'note'}">${T.carried} of ${T.carryLimit} items</span></div>
+    <section><div class="listbar"><h2>Pack</h2><span class="${T.carried > T.liveCarry ? 'warn' : 'note'}">${T.carried} of ${T.liveCarry} items</span></div>
       ${pack.length ? pack.map(card).join('') : '<p class="note">Your pack is empty.</p>'}
       <form id="itemForm" class="additem"><input id="itemName" placeholder="Item name" required><input id="itemDesc" placeholder="Description (optional)"><div class="row2"><input id="itemQty" type="number" inputmode="numeric" min="1" value="1" aria-label="Quantity"><button class="btn">Add item</button></div></form>
       <p class="note">Carrying more than your limit applies −2 Speed automatically.</p></section>`; },
@@ -214,10 +240,11 @@ const views = {
   skills: T => `
     <section class="points"><div class="row3">${stat('Points earned', T.earned)}${stat('Spent', T.spent)}<div class="calc"><span>Remaining</span><b class="${T.earned - T.spent < 0 ? 'warn' : ''}">${T.earned - T.spent}</b></div></div>
       <p class="note">2 at level 1, +1 each level, +1 bonus at every 5th level${D.races[current.race]?.freeMagicPoint ? ', +1 Avichai magic point' : ''}.</p></section>
-    ${['Physical','Mental','Attribute','Other'].map(g => `<section><h2>${g} skills</h2>${D.skills.filter(s => s.group === g).map(d => { const s = current.skills[d.name] || {}; const paths = Object.keys(d.paths);
+    ${['Physical','Mental','Attribute','Other'].map(g => { const list = D.skills.filter(s => s.group === g); const tiers = list.reduce((a, d) => a + n(current.skills[d.name]?.base) + n(current.skills[d.name]?.ptier), 0);
+      return `<section><details class="group" data-group="${g}" ${openGroups.has(g) ? 'open' : ''}><summary><h2>${g} skills</h2><span>${tiers ? tiers + ' tier' + (tiers > 1 ? 's' : '') : list.length + ' skills'}</span></summary>${list.map(d => { const s = current.skills[d.name] || {}; const paths = Object.keys(d.paths);
       return `<div class="skill"><div class="skhead"><b>${esc(d.name)}</b><small>${n(s.base) + n(s.ptier) ? `${n(s.base) + n(s.ptier)} of 8 tiers` : ''}</small></div>
         <div class="step"><span>Base tier</span><button data-sk="${esc(d.name)}" data-kind="base" data-by="-1" aria-label="Lower ${esc(d.name)}">−</button><output>${n(s.base)}</output><button data-sk="${esc(d.name)}" data-kind="base" data-by="1" aria-label="Raise ${esc(d.name)}">+</button></div>
-        ${n(s.base) >= 4 ? `${select('Path','skills.' + d.name + '.path', paths, 'Choose a path')}${s.path ? `<div class="step"><span>${esc(s.path)} tier</span><button data-sk="${esc(d.name)}" data-kind="path" data-by="-1" aria-label="Lower ${esc(s.path)}">−</button><output>${n(s.ptier)}</output><button data-sk="${esc(d.name)}" data-kind="path" data-by="1" aria-label="Raise ${esc(s.path)}">+</button></div>` : ''}` : ''}</div>`; }).join('')}</section>`).join('')}`
+        ${n(s.base) >= 4 ? `${select('Path','skills.' + d.name + '.path', paths, 'Choose a path')}${s.path ? `<div class="step"><span>${esc(s.path)} tier</span><button data-sk="${esc(d.name)}" data-kind="path" data-by="-1" aria-label="Lower ${esc(s.path)}">−</button><output>${n(s.ptier)}</output><button data-sk="${esc(d.name)}" data-kind="path" data-by="1" aria-label="Raise ${esc(s.path)}">+</button></div>` : ''}` : ''}</div>`; }).join('')}</details></section>`; }).join('')}`
 };
 // ---------- skills ----------
 function stepSkill(k, kind, by) {
@@ -261,7 +288,8 @@ function augStep(step, data = {}) {
 }
 function addAug(rec) {
   const same = current.aug.find(a => a.cat === rec.cat && a.type === rec.type && (rec.cat === 'stack' || rec.cat === 'resource'));
-  if (same) same.count = n(same.count) + n(rec.count); else current.aug.push({id: uid(), count: 1, ...rec});
+  let r = same; if (same) same.count = n(same.count) + n(rec.count); else { r = {id: uid(), count: 1, ...rec}; current.aug.push(r); }
+  if (r.cat === 'stack') { r.need = startNeed(current); capStack(r); }
   sheet.close(); const T = totals(current);
   toast([`${rec.type} added`, ...(rec.cat === 'stat' ? [`${n(rec.amount) > 0 ? '+' : ''}${n(rec.amount)} ${STATN[rec.stat]} until combat ends`] : []), ...(rec.type === 'Paralysis' ? ['−1 Strength and Agility per stack'] : []), ...(rec.type === 'Weakened' ? [`−${Math.abs(n(rec.amount))} ${STATN[rec.stat]}`] : []), ...T.notes.slice(-1)]);
   rerender();
@@ -325,7 +353,8 @@ document.addEventListener('click', e => {
   if (d.tmp) { let r = current.aug.find(a => a.cat === 'stat' && a.stat === d.tmp && a.source === 'Quick adjust');
     if (!r) { r = {id: uid(), cat: 'stat', stat: d.tmp, amount: 0, source: 'Quick adjust'}; current.aug.push(r); }
     r.amount = n(r.amount) + Number(d.by); r.type = `${STATN[d.tmp]} ${r.amount > 0 ? '+' : ''}${r.amount}`; if (!r.amount) current.aug = current.aug.filter(a => a !== r); return rerender(); }
-  if (d.aug) { const a = current.aug.find(x => x.id === d.aug); a.count = Math.max(0, n(a.count) + Number(d.by)); if (!a.count) current.aug = current.aug.filter(x => x !== a); return rerender(); }
+  if (d.recover) return recover(d.recover);
+  if (d.aug) { const a = current.aug.find(x => x.id === d.aug); a.count = Math.max(0, n(a.count) + Number(d.by)); if (a.cat === 'stack' && Number(d.by) > 0) { a.need = startNeed(current); capStack(a); } if (!a.count) current.aug = current.aug.filter(x => x !== a); return rerender(); }
   if (d.rmaug) { current.aug = current.aug.filter(x => x.id !== d.rmaug); return rerender(); }
   if (d.death) { current.death = current.death >= Number(d.death) ? Number(d.death) - 1 : Number(d.death); return rerender(); }
   if (d.del) { const [k, i] = d.del.split('.'); current[k].splice(Number(i), 1); return rerender(); }
@@ -356,5 +385,6 @@ $('#closeMenu').onclick = () => $('#menu').close();
 $('#exportBtn').onclick = () => { const blob = new Blob([JSON.stringify(db, null, 1)], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `primordium-characters-${new Date().toISOString().slice(0, 10)}.json`; a.click(); };
 $('#importFile').onchange = async e => { try { const data = JSON.parse(await e.target.files[0].text()); Object.assign(db, data); saveNow(); $('#menu').close(); listView(); toast([`Imported ${Object.keys(data).length} characters`]); } catch { toast(['That file is not a Primordium backup', 'Choose a file made with Export all characters.']); } };
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+document.addEventListener('toggle', e => { const g = e.target.dataset?.group; if (!g) return; e.target.open ? openGroups.add(g) : openGroups.delete(g); }, true);
 listView();
 })();

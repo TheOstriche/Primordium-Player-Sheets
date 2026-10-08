@@ -120,3 +120,15 @@ dialog.bottom::backdrop{background:rgba(0,0,0,.6)}
 button:disabled{opacity:.5}
 @media (prefers-reduced-motion:reduce){.switch i{transition:none}}
 .eq{display:flex;flex-direction:column;padding:8px 0;border-top:1px solid var(--line)}.eq b{font:700 16px var(--serif)}.eq span{color:var(--muted);font-size:13px}
+/* ---------- version 4 ---------- */
+details.group summary{display:flex;justify-content:space-between;align-items:center;gap:8px;list-style:none;cursor:pointer;min-height:44px}
+details.group summary::-webkit-details-marker{display:none}
+details.group summary h2{margin:0}
+details.group summary span{color:var(--muted);font-size:14px}
+details.group summary span::after{content:' ▾'}details.group[open] summary span::after{content:' ▴'}
+details.group[open] summary{margin-bottom:6px}
+.need{display:block;margin-top:2px;color:var(--muted);font-size:12px}
+.rec{flex-wrap:wrap}
+.rec-btn{min-height:40px;padding:8px 12px}
+.rec.stackrec>div:first-child{flex-basis:100%}
+.rec.stackrec .rec-btn{margin-right:auto}
