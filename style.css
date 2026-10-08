@@ -80,3 +80,43 @@ details.item summary span{color:var(--muted);font-size:13px;white-space:nowrap}
 details.item p{margin:6px 0 0;font-size:14px}
 .warn{color:#ef8f84}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
+/* ---------- version 3 ---------- */
+.tabs{grid-template-columns:repeat(5,1fr)}
+.modebar{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:6px 0 0;font:600 14px var(--sans);color:var(--muted)}
+.switch{width:56px;height:32px;padding:3px;border-radius:16px;border:1px solid var(--line);background:var(--ink2)}
+.switch i{display:block;width:24px;height:24px;border-radius:50%;background:var(--muted);transition:transform .2s}
+.switch.on{background:var(--blood);border-color:var(--blood)}.switch.on i{transform:translateX(24px);background:var(--bone)}
+.hpnum.still{text-align:center}.hpnum.still b{font:700 64px/1 var(--serif)}.hpnum.still small{display:block;color:var(--muted)}
+.clockwrap{display:flex;flex-direction:column;gap:3px;margin:6px 0}.clockwrap>span{font-size:12px;color:var(--muted)}
+.clock{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0}
+.pip{height:44px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--bone);font:600 15px var(--sans)}.pip.on{background:var(--blood);border-color:var(--blood)}
+.calc small{color:var(--muted);font-size:11px}.calc.boosted b{color:var(--gold)}
+.stat.temp>b{color:#7fc6e0}
+.alerts{border:0;padding:6px 0}.alerts p{margin:6px 0;padding:10px 12px;border-left:4px solid var(--blood);background:var(--ink2);border-radius:6px;font-size:14px}
+.listbar{display:flex;justify-content:space-between;align-items:center;gap:10px}.listbar h2{margin:0}
+.btn.small{width:auto;margin:0;padding:8px 14px;min-height:40px}
+.rec{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
+.rec>div:first-child{flex:1;min-width:0;display:flex;flex-direction:column}.rec b{font:700 16px var(--serif)}.rec small{color:var(--muted);font-size:13px}
+.rec output{min-width:28px;text-align:center;font:700 18px var(--sans)}
+.mini{display:flex;align-items:center;gap:4px}.mini button{width:40px;height:40px;padding:0;font-size:20px;color:var(--bone);background:none;border:1px solid var(--line);border-radius:6px}
+.x{width:40px;height:40px;padding:0;font-size:22px;color:var(--muted);background:none;border:0}
+.itembtns{display:flex;align-items:center;gap:10px}
+.rec.equipped b{color:var(--gold)}
+.card{margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:8px}.card b{font:700 17px var(--serif)}.card small{display:block;color:var(--muted)}.card p{margin:8px 0 0;font-size:14px}
+details.perks summary{list-style:none;cursor:pointer}details.perks summary::-webkit-details-marker{display:none}
+details.perks summary h2{display:flex;justify-content:space-between}details.perks summary h2::after{content:'▾';font-style:normal;color:var(--muted)}
+details.perks[open] summary h2::after{content:'▴'}
+.decklist{display:flex;flex-wrap:wrap;gap:6px 14px}.decklist b{font:700 18px var(--serif)}
+.maprow{display:grid;grid-template-columns:34px 82px 1fr;align-items:center;gap:8px;margin:6px 0}.maprow b{font:700 18px var(--serif);text-align:right}.maprow span{font-size:14px}
+.actions{display:grid;gap:4px}
+.charline{display:flex;align-items:center;gap:8px}.charline .charrow{flex:1}
+.del{padding:10px 12px;min-height:44px;color:#fff;background:var(--blood);border:0;border-radius:8px;font:600 14px var(--sans)}
+.additem{display:grid;gap:8px;margin-top:12px}
+dialog.bottom{position:fixed;inset:auto 0 0 0;margin:0;width:100%;max-width:none;max-height:85vh;overflow:auto;border-radius:16px 16px 0 0;border:1px solid var(--line);padding:0;background:var(--ink2);color:var(--bone)}
+dialog.bottom::backdrop{background:rgba(0,0,0,.6)}
+.sheetbody{max-width:560px;margin:0 auto;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+.choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.choice{min-height:52px;padding:10px;color:var(--bone);background:var(--ink);border:1px solid var(--line);border-radius:10px;font:600 15px var(--sans)}
+button:disabled{opacity:.5}
+@media (prefers-reduced-motion:reduce){.switch i{transition:none}}
+.eq{display:flex;flex-direction:column;padding:8px 0;border-top:1px solid var(--line)}.eq b{font:700 16px var(--serif)}.eq span{color:var(--muted);font-size:13px}
